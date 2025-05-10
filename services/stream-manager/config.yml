@@ -1,0 +1,49 @@
+# Stream Manager Configuration
+
+rtsp_streams:
+  cam1:
+    url: rtsp://camera1.local:554/stream
+    buffer_size: 30
+    reconnect_attempts: 5
+    reconnect_delay: 5
+  cam2:
+    url: rtsp://camera2.local:554/stream
+    buffer_size: 30
+    reconnect_attempts: 5
+    reconnect_delay: 5
+  cam3:
+    url: rtsp://camera3.local:554/stream
+    buffer_size: 30
+    reconnect_attempts: 5
+    reconnect_delay: 5
+  cam4:
+    url: rtsp://camera4.local:554/stream
+    buffer_size: 30
+    reconnect_attempts: 5
+    reconnect_delay: 5
+
+mqtt:
+  host: mqtt-broker
+  port: 1883
+  username: stream_manager
+  password: secure_password
+  topic_prefix: frames
+  qos: 1
+
+processing:
+  frame_width: 1920
+  frame_height: 1080
+  fps: 30
+  gpu_acceleration: true
+  mali_device: /dev/mali0
+
+monitoring:
+  metrics_port: 8000
+  log_level: INFO
+  health_check_interval: 60
+
+security:
+  tls_enabled: true
+  cert_path: /etc/certs/stream_manager.crt
+  key_path: /etc/certs/stream_manager.key
+  encryption_key: ${ENCRYPTION_KEY}

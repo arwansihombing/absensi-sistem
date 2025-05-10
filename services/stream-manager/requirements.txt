@@ -1,0 +1,23 @@
+# Core dependencies
+numpy>=1.21.0
+opencv-python>=4.5.3.56
+paho-mqtt>=1.5.1
+pyzmq>=22.3.0
+
+# Video processing
+gstreamer-python>=0.3.0
+av>=8.0.3
+
+# Hardware acceleration
+tensorflow-lite>=2.5.0
+onnxruntime>=1.8.1
+
+# Monitoring and logging
+prometheus-client>=0.11.0
+structlog>=21.1.0
+
+# Utilities
+pyyaml>=5.4.1
+cryptography>=3.4.7
+retrying>=1.3.3
+tenacity>=8.0.1

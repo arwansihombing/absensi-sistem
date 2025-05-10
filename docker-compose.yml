@@ -1,0 +1,92 @@
+version: '3.9'
+
+services:
+  # RTSP Stream Manager Service
+  stream-manager:
+    build:
+      context: ./services/stream-manager
+      dockerfile: Dockerfile
+    devices:
+      - /dev/mali0:/dev/mali0  # GPU access
+      - /dev/dri:/dev/dri      # Direct Rendering
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # AI Inference Engine Service
+  inference-engine:
+    build:
+      context: ./services/inference-engine
+      dockerfile: Dockerfile
+    depends_on:
+      - stream-manager
+    environment:
+      - NPU_VISIBLE_DEVICES=all
+
+  # Database Services
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    environment:
+      - POSTGRES_PASSWORD=secure_password
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:alpine
+    command: redis-server --requirepass secure_password
+    volumes:
+      - redis_data:/data
+
+  # Message Broker
+  mqtt-broker:
+    image: eclipse-mosquitto:latest
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+  # Admin Panel
+  admin-panel:
+    build:
+      context: ./services/admin-panel
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-gateway
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - stream-manager
+      - inference-engine
+
+  # Health Monitoring
+  monitoring:
+    build:
+      context: ./services/monitoring
+      dockerfile: Dockerfile
+    depends_on:
+      - timescaledb
+      - redis
+
+volumes:
+  timescale_data:
+  redis_data:
+  mosquitto_data:
+  mosquitto_log:

@@ -1,0 +1,76 @@
+# Multi-stage build untuk sistem absensi terintegrasi
+
+# Stage 1: Base image dengan dependencies umum
+FROM nvidia/cuda:11.4.0-runtime-ubuntu20.04 as base
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install dependencies sistem
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    libgstreamer1.0-0 \
+    libgstreamer-plugins-base1.0-0 \
+    redis-server \
+    mosquitto \
+    postgresql \
+    postgresql-contrib \
+    supervisor \
+    && rm -rf /var/lib/apt/lists/*
+
+# Stage 2: Build untuk Stream Manager
+FROM base as stream-manager
+WORKDIR /app/stream-manager
+COPY services/stream-manager/requirements.txt .
+RUN pip3 install -r requirements.txt
+COPY services/stream-manager/ .
+
+# Stage 3: Build untuk Inference Engine
+FROM base as inference-engine
+WORKDIR /app/inference-engine
+COPY services/inference-engine/requirements.txt .
+RUN pip3 install -r requirements.txt
+COPY services/inference-engine/ .
+
+# Stage 4: Build untuk API Gateway
+FROM base as api-gateway
+WORKDIR /app/api-gateway
+COPY services/api-gateway/requirements.txt .
+RUN pip3 install -r requirements.txt
+COPY services/api-gateway/ .
+
+# Stage 5: Build untuk Admin Panel
+FROM node:16 as admin-panel
+WORKDIR /app/admin-panel
+COPY services/admin-panel/package*.json ./
+RUN npm install
+COPY services/admin-panel/ .
+RUN npm run build
+
+# Stage 6: Final image
+FROM base
+
+# Copy dari stage sebelumnya
+COPY --from=stream-manager /app/stream-manager /app/stream-manager
+COPY --from=inference-engine /app/inference-engine /app/inference-engine
+COPY --from=api-gateway /app/api-gateway /app/api-gateway
+COPY --from=admin-panel /app/admin-panel/dist /app/admin-panel
+
+# Setup direktori dan permissions
+RUN mkdir -p /mosquitto/data /mosquitto/log \
+    && chown -R mosquitto:mosquitto /mosquitto \
+    && mkdir -p /var/lib/postgresql/data \
+    && chown -R postgres:postgres /var/lib/postgresql/data
+
+# Copy konfigurasi
+COPY services/timescaledb/timescale.conf /etc/postgresql/postgresql.conf
+COPY mosquitto.conf /etc/mosquitto/mosquitto.conf
+
+# Setup supervisor
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Expose ports
+EXPOSE 1883 9001 5432 6379 8000 3000
+
+# Start services menggunakan supervisor
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
