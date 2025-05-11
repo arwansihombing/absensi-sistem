@@ -5,6 +5,20 @@ DOCKER_USERNAME="arwansihombing"
 IMAGE_NAME="absensi-system"
 TAG="latest"
 
+# Pastikan Docker terinstal
+if ! command -v docker &> /dev/null; then
+    echo "Docker belum terinstal. Menginstal Docker terlebih dahulu..."
+    # Jalankan script instalasi Docker
+    bash ./install-docker.sh
+    # Tunggu sebentar agar Docker service siap
+    sleep 5
+    # Verifikasi instalasi
+    if ! command -v docker &> /dev/null; then
+        echo "Gagal menginstal Docker. Silakan instal Docker secara manual."
+        exit 1
+    fi
+fi
+
 # Install dependensi minimum yang diperlukan
 echo "Installing minimum dependencies..."
 sudo apt-get update && sudo apt-get install -y \
