@@ -1,14 +1,11 @@
 import os
 import cv2
 import numpy as np
-import torch
 import logging
 from typing import Dict, Tuple, List
 from threading import Thread
 from queue import Queue
 from ultralytics import YOLO
-from retinaface import RetinaFace
-from arcface_torch import get_model as get_arcface_model
 from insightface.app import FaceAnalysis
 from prometheus_client import Counter, Gauge, start_http_server
 import paho.mqtt.client as mqtt
@@ -28,22 +25,13 @@ class ModelManager:
         yolo_model = YOLO(f"{self.model_path}/yolov8n-face.pt")
         yolo_model.to('cpu')  # Will use NPU via TFLite delegate
         
-        # Load RetinaFace model
-        retina_model = RetinaFace(gpu_id=0)
-        
-        # Load ArcFace model
-        arcface_model = get_arcface_model('r50', fp16=True)
-        arcface_model.eval()
-        
-        # Load anti-spoofing model
+        # Load InsightFace model for detection and recognition
         app = FaceAnalysis(providers=['CPUExecutionProvider'])
         app.prepare(ctx_id=0, det_size=(640, 640))
         
         return {
             'yolo': yolo_model,
-            'retina': retina_model,
-            'arcface': arcface_model,
-            'antispoof': app
+            'insightface': app
         }
 
 class FaceProcessor:
@@ -52,17 +40,20 @@ class FaceProcessor:
         self.face_db = redis.Redis(host='redis', port=6379, db=0)
         
     def detect_faces(self, frame: np.ndarray) -> List[Dict]:
-        # Hybrid detection using both YOLOv8 and RetinaFace
+        # Hybrid detection using YOLOv8 and InsightFace
         yolo_results = self.model_manager.models['yolo'](frame)
-        retina_results = self.model_manager.models['retina'].detect(frame)
+        insight_results = self.model_manager.models['insightface'].get(frame)
         
         # Merge and filter results
-        faces = self._merge_detections(yolo_results, retina_results)
+        faces = self._merge_detections(yolo_results, insight_results)
         return faces
     
     def recognize_face(self, face_img: np.ndarray) -> str:
-        # Extract features using ArcFace
-        features = self.model_manager.models['arcface'].get_feature(face_img)
+        # Extract features using InsightFace
+        face_features = self.model_manager.models['insightface'].get(face_img)
+        if not face_features:
+            return None
+        features = face_features[0].embedding
         
         # Search in Redis for matching face
         matches = self._search_face_db(features)

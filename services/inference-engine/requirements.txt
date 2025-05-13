@@ -1,38 +1,32 @@
 # Deep Learning Frameworks
-torch>=1.9.0
-torchvision>=0.10.0
-onnxruntime-gpu>=1.8.1
-tensorflow-lite>=2.5.0
+tflite-runtime
+onnxruntime
 
 # Computer Vision
-opencv-python>=4.5.3.56
-dlib>=19.22.0
-facenet-pytorch>=2.5.2
-insightface>=0.6.2
+opencv-python-headless
+insightface
 
 # AI Models
-ultralytics>=8.0.0  # YOLOv8
-retinaface>=0.0.5
-arcface-torch>=1.8.0
+ultralytics
+insightface>=0.7
 
 # Anti-spoofing
-scikit-image>=0.18.3
-scikit-learn>=0.24.2
-mediapipe>=0.8.9.1
-
-# Hardware Acceleration
-tensorrt>=8.2.0
-armnn>=22.0.0
+scikit-image
+scikit-learn
 
 # Message Broker
-paho-mqtt>=1.5.1
-redis>=4.0.2
+paho-mqtt
+redis
 
 # Monitoring and Logging
-prometheus-client>=0.11.0
-structlog>=21.1.0
+prometheus-client
+structlog
 
 # Utilities
-numpy>=1.21.0
-pyyaml>=5.4.1
-cryptography>=3.4.7
+numpy
+pyyaml
+cryptography
+
+# Graphics Libraries
+pycairo
+pygobject
