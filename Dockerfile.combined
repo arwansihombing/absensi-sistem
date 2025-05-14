@@ -14,6 +14,9 @@ ARG TARGETARCH
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Create non-root user
+RUN useradd -m appuser
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     python3 \
@@ -31,7 +34,14 @@ RUN apt-get update && apt-get install -y \
     libcairo2-dev \
     libgirepository1.0-dev \
     gir1.2-gtk-3.0 \
-    && rm -rf /var/lib/apt/lists/*
+    nginx \
+    postgresql-12 \
+    redis-server \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /var/lib/postgresql/data \
+    && chown -R appuser:appuser /var/lib/postgresql/data \
+    && mkdir -p /etc/mosquitto \
+    && touch /etc/mosquitto/mosquitto.conf
 
 # Create virtual environment
 ENV VIRTUAL_ENV=/opt/venv
@@ -49,10 +59,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip3 install --no-cache-dir -r requirements.txt && \
     pip3 check
 COPY services/stream-manager/ .
-
-# Create non-root user
-RUN useradd -m appuser && \
-    chown -R appuser:appuser /app
+RUN chown -R appuser:appuser /app
 USER appuser
 
 # Stage 3: Build untuk Inference Engine dengan optimasi cache
@@ -63,10 +70,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip3 install --no-cache-dir -r requirements.txt && \
     pip3 check
 COPY services/inference-engine/ .
-
-# Create non-root user
-RUN useradd -m appuser && \
-    chown -R appuser:appuser /app
+RUN chown -R appuser:appuser /app
 USER appuser
 
 # Stage 4: Final image dengan optimasi
@@ -81,10 +85,6 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 COPY --from=stream-manager /app/stream-manager /app/stream-manager
 COPY --from=inference-engine /app/inference-engine /app/inference-engine
 
-# Create non-root user
-RUN useradd -m appuser && \
-    chown -R appuser:appuser /app
-
 # Setup environment variables
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
@@ -97,9 +97,12 @@ RUN mkdir -p /var/log/supervisor /etc/supervisor/conf.d \
     && chown -R root:root /var/log/supervisor \
     && chmod -R 750 /var/log/supervisor \
     && mkdir -p /app/inference-engine/models \
-    && chmod -R 750 /app
+    && chmod -R 750 /app \
+    && chown -R appuser:appuser /app
 
 # Copy supervisor configuration
+RUN mkdir -p /var/log/supervisor && chown -R appuser:appuser /var/log/supervisor
+
 COPY supervisord.conf /etc/supervisor/conf.d/
 RUN chmod 644 /etc/supervisor/conf.d/supervisord.conf
 
